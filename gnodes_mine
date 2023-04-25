@@ -195,6 +195,7 @@ def get_output_width(fallback_width):
     return width
 
 def make_header(partition, max_walltime, ncores, nmem, ngpus, field_width, nfields, default_partition):
+    # print(partition)
     header_line = " " + '+'.join('-'*(field_width+2) for p in range(nfields))
     text_long = " - %d cores & %dGB" % (ncores, nmem / 2**30)
     text_short = " - %dC / %dGB" % (ncores, nmem / 2**30)
@@ -209,7 +210,7 @@ def make_header(partition, max_walltime, ncores, nmem, ngpus, field_width, nfiel
     else:
         text = text_long
     part = format_partition(partition, (partition==default_partition))
-    header   = '+- ' + part.decode() + text + ' '
+    header   = '+- ' + part + text + ' '
 
     header_line = header + header_line[len(text)+len(partition)+4:]
     return '\n' + header_line + '+'
@@ -272,7 +273,7 @@ def main(partitions, groups, accounts, search_pattern):
     for k,g in groupby(sorted(node_meta.items(), key=group_id), key=group_id):
 
         if len(partitions) > 0:
-            if k.partition not in partitions:
+            if k.partition.decode() not in partitions:
                 continue
         elif GNODES_IGNORE.search(k.partition.decode()):
             print("ignoring " + k.partition)
@@ -311,7 +312,7 @@ def main(partitions, groups, accounts, search_pattern):
             name_patterns.extend([NODENAME_UNMATCHED]*dummy_fields)
         rows = len(info_fields) / fields_per_row
         print(make_header(
-                k.partition, partition_walltimes[k.partition], k.cores, k.mem, k.gpus,
+                k.partition.decode(), partition_walltimes[k.partition], k.cores, k.mem, k.gpus,
                 max_field_width, fields_per_row, default_partition))
         for r in range(0, int(rows)):
             # print("")

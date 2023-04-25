@@ -210,6 +210,7 @@ def make_header(partition, max_walltime, ncores, nmem, ngpus, field_width, nfiel
         text = text_long
     part = format_partition(partition, (partition==default_partition))
     header   = '+- ' + part.decode() + text + ' '
+
     header_line = header + header_line[len(text)+len(partition)+4:]
     return '\n' + header_line + '+'
 
@@ -233,7 +234,6 @@ def main(partitions, groups, accounts, search_pattern):
 
     for line in stripped_lines_from_cmd(NODE_CMD):
         node,cpuinfo,mem,load,state,partition,max_walltime,gres,allocmem = line.split()
-
         gpus = 0
         m = re.match("gpu:(\d+)", gres.decode())
         if m:
@@ -243,9 +243,10 @@ def main(partitions, groups, accounts, search_pattern):
         if partition.endswith('*'.encode()):
             partition = partition[:-1]
             default_partition = partition
-        partition_walltimes[partition] = max_walltime
-        node_meta[(node,partition)] = NodeMeta(load, in_use, unavailable, cores, int(mem)*1024*1024, gpus, state, int(allocmem)*1024*1024)
-        node_job_meta[node] = JobMeta(set(), set(), list(), set(), set())
+
+        partition_walltimes[partition] = max_walltime.decode()
+        node_meta[(node,partition)] = NodeMeta(load.decode(), in_use, unavailable, cores, int(mem)*1024*1024, gpus, state.decode(), int(allocmem)*1024*1024)
+        node_job_meta[node.decode()] = JobMeta(set(), set(), list(), set(), set())
 
     empty_set = set()
     result = []
@@ -284,7 +285,8 @@ def main(partitions, groups, accounts, search_pattern):
         fmt = "%%-%ds %%4.0fG  %%s" % max_node_len
         #print("fmt=%s"%fmt)
         for (node,partition),meta in sg:
-            job_meta = node_job_meta[node]
+            job_meta = node_job_meta[node.decode()]
+            # print(job_meta)
             search_target = job_meta.job_ids | job_meta.job_usernames | job_meta.job_accounts | job_meta.job_groups | set([node])
             highlight = any(search_pattern.search(x.decode()) != None for x in search_target)
             highlight = highlight or len(accounts & job_meta.job_accounts) > 0
@@ -294,8 +296,10 @@ def main(partitions, groups, accounts, search_pattern):
             bar = make_bar(meta, mem_available == 0)
             if meta.in_use == meta.cores:
                 mem_available = 0
-            info = fmt % (node, mem_available / (2**30), bar.center(meta.cores))
+            info = fmt % (node.decode(), mem_available / (2**30), bar.center(meta.cores))
+            #rd print(info)
             info_fields.append(info)
+            # print(info_fields)
             name_patterns.append(highlight and NODENAME_MATCHED or NODENAME_UNMATCHED)
         max_field_width = max(len(i) for i in info_fields)
         fields_per_row = clamp(int(screen_width / (max_field_width + 3)), 1, len(info_fields))
@@ -303,12 +307,14 @@ def main(partitions, groups, accounts, search_pattern):
         if fields_in_last_row != 0:
             dummy_fields = fields_per_row - fields_in_last_row
             info_fields.extend([" "*max_field_width]*dummy_fields)
+            # print(info_fields)
             name_patterns.extend([NODENAME_UNMATCHED]*dummy_fields)
         rows = len(info_fields) / fields_per_row
         print(make_header(
                 k.partition, partition_walltimes[k.partition], k.cores, k.mem, k.gpus,
                 max_field_width, fields_per_row, default_partition))
         for r in range(0, int(rows)):
+            # print("")
             print("| %s |" % " | ".join(pat % s for pat,s in list(zip(name_patterns, info_fields))[r::int(rows)]))
         print(make_footer(max_field_width, fields_per_row))
 
